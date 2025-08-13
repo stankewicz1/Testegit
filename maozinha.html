@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconhecimento de gesto</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            background-color: #f0f5f0;
+            padding: 10px;
+            padding-top: 70px;
+            padding-bottom: 70px;
+            border: #444 solid 1px;
+            transition: background-color 0.3s ease;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        h1 {
+            font-size: 40px;
+            color: darkred;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        #webcam {
+            width: 600px;
+            height: 600px;
+            margin: auto;
+            background-color: #228B22;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: red;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border: 2px solid #444;
+        }
+
+        button {
+            padding: 10px 25px;
+            margin-top: 20px;
+            font-size: 22px;
+            border-radius: 30px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #ff4444, #aa0000);
+            color: #fff;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, #aa0000, #ff4444);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>IA com Teachable Machine</h1>
+    <div id="webcam">Câmera desligada</div>
+    <button id="btn">Ligar Câmera</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+    <script>
+        const URL = "https://teachablemachine.withgoogle.com/models/2I554wBMF/";
+
+        let model, webcam, isOn = false;
+
+        document.getElementById("btn").addEventListener("click", function () {
+            if (!isOn) {
+                ligarCamera();
+                this.textContent = "Desligar Câmera";
+            } else {
+                desligarCamera();
+                this.textContent = "Ligar Câmera";
+            }
+            isOn = !isOn;
+        });
+
+        async function ligarCamera() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            webcam = new tmImage.Webcam(600, 600, true);
+            await webcam.setup();
+            await webcam.play();
+            document.getElementById("webcam").innerHTML = "";
+            document.getElementById("webcam").appendChild(webcam.canvas);
+            window.requestAnimationFrame(loop);
+        }
+
+        function desligarCamera() {
+            if (webcam && webcam.stream) {
+                webcam.stop();
+            }
+            document.getElementById("webcam").innerHTML = "Câmera desligada";
+            document.body.style.backgroundColor = "";
+        }
+
+        async function loop() {
+            if (!isOn) return;
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            if (isOn) {
+                const prediction = await model.predict(webcam.canvas);
+
+                let maisProvavel = prediction.reduce((a, b) =>
+                    a.probability > b.probability ? a : b
+                );
+
+                if (maisProvavel.className === "Aberta" && maisProvavel.probability > 0.7) {
+                    document.body.style.backgroundColor = "#288000";
+                }
+                else if (maisProvavel.className === "Fechada" && maisProvavel.probability > 0.7) {
+                    document.body.style.backgroundColor = "#0007a0";
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
